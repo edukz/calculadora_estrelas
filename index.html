@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora Pokémon Avançada</title>
+  
+  <!-- Carregando React via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Carregando Babel para JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Carregando Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    body {
+      background-color: #111827; /* bg-gray-900 */
+      margin: 0;
+      padding: 0;
+      color: #e5e7eb; /* text-gray-200 */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    input[type="range"] {
+      accent-color: #4f46e5; /* indigo-600 */
+    }
+  </style>
+</head>
+<body>
+  <!-- Contêiner para a aplicação React -->
+  <div id="root" class="min-h-screen py-8"></div>
+  
+  <!-- Código React da Calculadora Pokémon -->
+  <script type="text/babel">
+    // Definição dos bônus de dano por tier e estrelas
+    const damageBonusData = {
+      'Tier 3': 2,
+      'Tier 2': 4,
+      'Tier 1': 6,
+      'Super Rare': 8,
+      'Ultra Rare': 10,
+      'Legendary': 15,
+      'Mythical': 15
+    };
+
+    // Danos base por tipo e tier
+    const baseDamageData = {
+      'DPS Finalizador': {
+        'Tier 3': 40000,
+        'Tier 2': 45000,
+        'Tier 1': 58000,
+        'Super Rare': 65000,
+        'Ultra Rare': 75000,
+        'Legendary': 80000,
+        'Mythical': 90000
+      },
+      'DPS Hard CC': {
+        'Tier 3': 35000,
+        'Tier 2': 40000,
+        'Tier 1': 54000,
+        'Super Rare': 60000,
+        'Ultra Rare': 70000,
+        'Legendary': 80000,
+        'Mythical': 85000
+      },
+      'Off Tanker': {
+        'Tier 3': 30000,
+        'Tier 2': 35000,
+        'Tier 1': 50000,
+        'Super Rare': 55000,
+        'Ultra Rare': 65000,
+        'Legendary': 75000,
+        'Mythical': 80000
+      },
+      'Tanker': {
+        'Tier 3': 30000,
+        'Tier 2': 30000,
+        'Tier 1': 32000,
+        'Super Rare': 32000,
+        'Ultra Rare': 34000,
+        'Legendary': 35000,
+        'Mythical': 35000
+      }
+    };
+
+    // Requisitos de Pokémon por nível de estrela
+    const pokemonRequirements = {
+      0: 1,
+      1: 2,
+      2: 4,
+      3: 8,
+      4: 16,
+      5: 32
+    };
+
+    function PokemonCalculator() {
+      // Estado para controlar a aba ativa
+      const [activeTab, setActiveTab] = React.useState('comparison');
+      
+      // Estados do comparador de dano
+      const [pokemon1, setPokemon1] = React.useState({
+        type: 'DPS Finalizador',
+        tier: 'Super Rare',
+        stars: 2,
+        baseDamage: baseDamageData['DPS Finalizador']['Super Rare']
+      });
+
+      const [pokemon2, setPokemon2] = React.useState({
+        type: 'DPS Finalizador',
+        tier: 'Legendary',
+        stars: 0,
+        baseDamage: baseDamageData['DPS Finalizador']['Legendary']
+      });
+
+      // Estados da análise de custo-benefício
+      const [costBenefitPokemon, setCostBenefitPokemon] = React.useState({
+        type: 'DPS Finalizador',
+        tier: 'Super Rare',
+        currentStars: 0,
+        targetStars: 3,
+        price: 1000000,
+        alternativePokemonPrice: 1500000,
+        alternativeType: 'DPS Finalizador',
+        alternativeTier: 'Ultra Rare',
+        alternativeStars: 0,
+        baseDamage: baseDamageData['DPS Finalizador']['Super Rare']
+      });
+
+      // Função para calcular dano com bônus
+      const calculateDamage = (pokemonData) => {
+        const { type, tier, stars, baseDamage } = pokemonData;
+        const bonusPerStar = damageBonusData[tier];
+        const totalBonus = bonusPerStar * stars;
+        const newDamage = baseDamage * (1 + (totalBonus / 100));
+        
+        return {
+          type,
+          tier,
+          stars,
+          baseDamage,
+          bonusPercentage: totalBonus,
+          finalDamage: Math.round(newDamage)
+        };
+      };
+
+      // Calcular danos dos Pokémon (para comparação)
+      const pokemon1Damage = calculateDamage(pokemon1);
+      const pokemon2Damage = calculateDamage(pokemon2);
+
+      // Calcular diferença (para comparação)
+      const damageDifference = pokemon1Damage.finalDamage - pokemon2Damage.finalDamage;
+      const percentageDifference = Math.round((damageDifference / pokemon2Damage.finalDamage) * 100);
+
+      // Calcular custo-benefício
+      const calculateCostBenefit = () => {
+        const { 
+          type, tier, currentStars, targetStars, price, 
+          alternativeType, alternativeTier, alternativeStars, alternativePokemonPrice 
+        } = costBenefitPokemon;
+        
+        // Calcular quantos Pokémon são necessários
+        const requiredPokemon = pokemonRequirements[targetStars] - pokemonRequirements[currentStars];
+        const totalInvestment = requiredPokemon * price;
+        
+        // Calcular dano atual
+        const currentDamage = calculateDamage({
+          type,
+          tier, 
+          stars: currentStars,
+          baseDamage: baseDamageData[type][tier]
+        }).finalDamage;
+        
+        // Calcular dano futuro
+        const targetDamage = calculateDamage({
+          type,
+          tier, 
+          stars: targetStars,
+          baseDamage: baseDamageData[type][tier]
+        }).finalDamage;
+        
+        // Calcular dano do Pokémon alternativo
+        const alternativeDamage = calculateDamage({
+          type: alternativeType,
+          tier: alternativeTier, 
+          stars: alternativeStars,
+          baseDamage: baseDamageData[alternativeType][alternativeTier]
+        }).finalDamage;
+        
+        // Calcular quantos Pokémon alternativos poderia comprar
+        const alternativePokemonQuantity = Math.floor(totalInvestment / alternativePokemonPrice);
+        
+        // Calcular ganho de dano ao estrelar
+        const damageGain = targetDamage - currentDamage;
+        const damageGainPercentage = Math.round((damageGain / currentDamage) * 100);
+        
+        // Calcular eficiência (dano ganho por moeda investida)
+        const efficiency = damageGain / totalInvestment;
+        
+        // Calcular dano total se comprasse Pokémon alternativos
+        const totalAlternativeDamage = alternativeDamage * alternativePokemonQuantity;
+        
+        // Comparar ganho de dano vs. alternativa
+        const betterChoice = totalAlternativeDamage > damageGain 
+          ? 'alternative' 
+          : 'upgrade';
+        
+        return {
+          requiredPokemon,
+          totalInvestment,
+          currentDamage,
+          targetDamage,
+          damageGain,
+          damageGainPercentage,
+          efficiency,
+          alternativePokemonQuantity,
+          alternativeDamage,
+          totalAlternativeDamage,
+          betterChoice
+        };
+      };
+
+      const costBenefitResults = calculateCostBenefit();
+
+      // Renderizar a aba de comparação
+      const renderComparisonTab = () => (
+        <>
+          {/* Pokémon 1 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Tipo Pokémon 1:</label>
+              <select 
+                value={pokemon1.type} 
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setPokemon1({
+                    ...pokemon1, 
+                    type: newType,
+                    baseDamage: baseDamageData[newType][pokemon1.tier]
+                  });
+                }}
+                className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                {Object.keys(baseDamageData).map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Tier Pokémon 1:</label>
+              <select 
+                value={pokemon1.tier} 
+                onChange={(e) => {
+                  const newTier = e.target.value;
+                  setPokemon1({
+                    ...pokemon1, 
+                    tier: newTier,
+                    baseDamage: baseDamageData[pokemon1.type][newTier]
+                  });
+                }}
+                className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                {Object.keys(damageBonusData).map(tierOption => (
+                  <option key={tierOption} value={tierOption}>{tierOption}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Estrelas Pokémon 1:</label>
+              <input 
+                type="range" 
+                min="0" 
+                max="5" 
+                value={pokemon1.stars}
+                onChange={(e) => setPokemon1({...pokemon1, stars: Number(e.target.value)})}
+                className="w-full accent-indigo-600"
+              />
+              <div className="text-center text-gray-400">{pokemon1.stars} Estrelas</div>
+            </div>
+          </div>
+
+          {/* Pokémon 2 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Tipo Pokémon 2:</label>
+              <select 
+                value={pokemon2.type} 
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setPokemon2({
+                    ...pokemon2, 
+                    type: newType,
+                    baseDamage: baseDamageData[newType][pokemon2.tier]
+                  });
+                }}
+                className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                {Object.keys(baseDamageData).map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Tier Pokémon 2:</label>
+              <select 
+                value={pokemon2.tier} 
+                onChange={(e) => {
+                  const newTier = e.target.value;
+                  setPokemon2({
+                    ...pokemon2, 
+                    tier: newTier,
+                    baseDamage: baseDamageData[pokemon2.type][newTier]
+                  });
+                }}
+                className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                {Object.keys(damageBonusData).map(tierOption => (
+                  <option key={tierOption} value={tierOption}>{tierOption}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-gray-300 font-bold">Estrelas Pokémon 2:</label>
+              <input 
+                type="range" 
+                min="0" 
+                max="5" 
+                value={pokemon2.stars}
+                onChange={(e) => setPokemon2({...pokemon2, stars: Number(e.target.value)})}
+                className="w-full accent-indigo-600"
+              />
+              <div className="text-center text-gray-400">{pokemon2.stars} Estrelas</div>
+            </div>
+          </div>
+
+          {/* Resultados da Comparação */}
+          <div className="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <div className="text-center">
+              <h3 className="font-bold text-lg text-gray-200">Pokémon 1</h3>
+              <p className="text-gray-300">Tipo: {pokemon1Damage.type}</p>
+              <p className="text-gray-300">Tier: {pokemon1Damage.tier}</p>
+              <p className="text-gray-300">Estrelas: {pokemon1Damage.stars}</p>
+              <p className="text-gray-300">Dano Base: {pokemon1Damage.baseDamage.toLocaleString()}</p>
+              <p className="text-gray-300">Bônus de Dano: {pokemon1Damage.bonusPercentage}%</p>
+              <p className="font-bold text-indigo-400">Dano Final: {pokemon1Damage.finalDamage.toLocaleString()}</p>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="font-bold text-lg text-gray-200">Pokémon 2</h3>
+              <p className="text-gray-300">Tipo: {pokemon2Damage.type}</p>
+              <p className="text-gray-300">Tier: {pokemon2Damage.tier}</p>
+              <p className="text-gray-300">Estrelas: {pokemon2Damage.stars}</p>
+              <p className="text-gray-300">Dano Base: {pokemon2Damage.baseDamage.toLocaleString()}</p>
+              <p className="text-gray-300">Bônus de Dano: {pokemon2Damage.bonusPercentage}%</p>
+              <p className="font-bold text-indigo-400">Dano Final: {pokemon2Damage.finalDamage.toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Comparação de Diferença */}
+          <div className="bg-gray-900 p-4 rounded-lg text-center border border-gray-700">
+            <h3 className="font-bold text-lg text-gray-200">Comparação</h3>
+            <p className="text-gray-300">
+              Diferença Absoluta: {damageDifference > 0 ? '+' : ''}{damageDifference.toLocaleString()} 
+              {" "}({percentageDifference > 0 ? '+' : ''}{percentageDifference}%)
+            </p>
+            {damageDifference > 0 ? (
+              <p className="text-emerald-400">Pokémon 1 causa mais dano</p>
+            ) : damageDifference < 0 ? (
+              <p className="text-rose-400">Pokémon 2 causa mais dano</p>
+            ) : (
+              <p className="text-gray-400">Ambos causam o mesmo dano</p>
+            )}
+          </div>
+        </>
+      );
+
+      // Renderizar a aba de custo-benefício
+      const renderCostBenefitTab = () => (
+        <>
+          <div className="grid grid-cols-2 gap-6">
+            {/* Coluna da esquerda - Pokémon a ser estrelado */}
+            <div className="space-y-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <h3 className="font-bold text-lg text-center text-indigo-400">Pokémon a ser Estrelado</h3>
+              
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Tipo:</label>
+                <select 
+                  value={costBenefitPokemon.type} 
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setCostBenefitPokemon({
+                      ...costBenefitPokemon, 
+                      type: newType,
+                      baseDamage: baseDamageData[newType][costBenefitPokemon.tier]
+                    });
+                  }}
+                  className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  {Object.keys(baseDamageData).map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Tier:</label>
+                <select 
+                  value={costBenefitPokemon.tier} 
+                  onChange={(e) => {
+                    const newTier = e.target.value;
+                    setCostBenefitPokemon({
+                      ...costBenefitPokemon, 
+                      tier: newTier,
+                      baseDamage: baseDamageData[costBenefitPokemon.type][newTier]
+                    });
+                  }}
+                  className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  {Object.keys(damageBonusData).map(tierOption => (
+                    <option key={tierOption} value={tierOption}>{tierOption}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Estrelas Atuais:</label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="4" 
+                  value={costBenefitPokemon.currentStars}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setCostBenefitPokemon({
+                      ...costBenefitPokemon, 
+                      currentStars: value,
+                      targetStars: Math.max(value + 1, costBenefitPokemon.targetStars)
+                    });
+                  }}
+                  className="w-full accent-indigo-600"
+                />
+                <div className="text-center text-gray-400">{costBenefitPokemon.currentStars} Estrelas</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Estrelas Alvo:</label>
+                <input 
+                  type="range" 
+                  min={costBenefitPokemon.currentStars + 1} 
+                  max="5" 
+                  value={costBenefitPokemon.targetStars}
+                  onChange={(e) => setCostBenefitPokemon({
+                    ...costBenefitPokemon, 
+                    targetStars: Number(e.target.value)
+                  })}
+                  className="w-full accent-indigo-600"
+                />
+                <div className="text-center text-gray-400">{costBenefitPokemon.targetStars} Estrelas</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Preço de cada Pokémon:</label>
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-2">$</span>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={costBenefitPokemon.price}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? 0 : Number(e.target.value);
+                      if (!isNaN(value)) {
+                        setCostBenefitPokemon({
+                          ...costBenefitPokemon, 
+                          price: value
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna da direita - Pokémon Alternativo */}
+            <div className="space-y-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <h3 className="font-bold text-lg text-center text-purple-400">Pokémon Alternativo</h3>
+              
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Tipo:</label>
+                <select 
+                  value={costBenefitPokemon.alternativeType} 
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setCostBenefitPokemon({
+                      ...costBenefitPokemon, 
+                      alternativeType: newType
+                    });
+                  }}
+                  className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  {Object.keys(baseDamageData).map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Tier:</label>
+                <select 
+                  value={costBenefitPokemon.alternativeTier} 
+                  onChange={(e) => {
+                    const newTier = e.target.value;
+                    setCostBenefitPokemon({
+                      ...costBenefitPokemon, 
+                      alternativeTier: newTier
+                    });
+                  }}
+                  className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  {Object.keys(damageBonusData).map(tierOption => (
+                    <option key={tierOption} value={tierOption}>{tierOption}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Estrelas:</label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="5" 
+                  value={costBenefitPokemon.alternativeStars}
+                  onChange={(e) => setCostBenefitPokemon({
+                    ...costBenefitPokemon, 
+                    alternativeStars: Number(e.target.value)
+                  })}
+                  className="w-full accent-purple-600"
+                />
+                <div className="text-center text-gray-400">{costBenefitPokemon.alternativeStars} Estrelas</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-gray-300 font-bold">Preço de cada Pokémon:</label>
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-2">$</span>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={costBenefitPokemon.alternativePokemonPrice}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? 0 : Number(e.target.value);
+                      if (!isNaN(value)) {
+                        setCostBenefitPokemon({
+                          ...costBenefitPokemon, 
+                          alternativePokemonPrice: value
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border bg-gray-800 border-gray-700 text-gray-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resultados do custo-benefício */}
+          <div className="bg-gray-800 p-4 rounded-lg mt-6 space-y-4 border border-gray-700">
+            <h3 className="font-bold text-xl text-center text-gray-200">Análise de Custo-Benefício</h3>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-bold text-indigo-400">Evoluir Pokémon Atual</h4>
+                <p className="text-gray-300">Pokémons necessários: {costBenefitResults.requiredPokemon}</p>
+                <p className="text-gray-300">Investimento total: ${costBenefitResults.totalInvestment.toLocaleString()}</p>
+                <p className="text-gray-300">Dano atual: {costBenefitResults.currentDamage.toLocaleString()}</p>
+                <p className="text-gray-300">Dano após evolução: {costBenefitResults.targetDamage.toLocaleString()}</p>
+                <p className="text-gray-300">Ganho de dano: +{costBenefitResults.damageGain.toLocaleString()} (+{costBenefitResults.damageGainPercentage}%)</p>
+                <p className="text-gray-300">Eficiência: {costBenefitResults.efficiency.toFixed(5)} dano por moeda investida</p>
+                <p className="text-gray-300">ROI: {(costBenefitResults.damageGainPercentage / costBenefitResults.requiredPokemon).toFixed(2)}% de aumento de dano por Pokémon investido</p>
+              </div>
+              
+              <div>
+                <h4 className="font-bold text-purple-400">Comprar Pokémon Alternativo</h4>
+                <p className="text-gray-300">Pokémons que poderia comprar: {costBenefitResults.alternativePokemonQuantity}</p>
+                <p className="text-gray-300">Dano por Pokémon: {costBenefitResults.alternativeDamage.toLocaleString()}</p>
+                <p className="text-gray-300">Dano total: {costBenefitResults.totalAlternativeDamage.toLocaleString()}</p>
+              </div>
+            </div>
+            
+            {/* Recomendação */}
+            <div className={`text-center p-3 rounded-lg font-bold text-lg ${
+              costBenefitResults.betterChoice === 'upgrade' 
+                ? 'bg-indigo-900 text-indigo-300 border border-indigo-700' 
+                : 'bg-purple-900 text-purple-300 border border-purple-700'
+            }`}>
+              {costBenefitResults.betterChoice === 'upgrade' 
+                ? `Recomendação: Estrelar seu Pokémon ${costBenefitPokemon.type} ${costBenefitPokemon.tier} para ${costBenefitPokemon.targetStars}★`
+                : `Recomendação: Comprar ${costBenefitResults.alternativePokemonQuantity} ${costBenefitPokemon.alternativeType} ${costBenefitPokemon.alternativeTier} ${costBenefitPokemon.alternativeStars}★`
+              }
+            </div>
+          </div>
+        </>
+      );
+
+      return (
+        <div className="max-w-4xl mx-auto p-6 bg-gray-900 rounded-xl shadow-lg space-y-6 text-gray-200 border border-gray-700">
+          <h2 className="text-2xl font-bold text-center text-indigo-400">Calculadora Pokémon Avançada</h2>
+          
+          {/* Tabs */}
+          <div className="flex border-b border-gray-700">
+            <button 
+              className={`py-2 px-4 font-medium ${activeTab === 'comparison' 
+                ? 'border-b-2 border-indigo-500 text-indigo-400' 
+                : 'text-gray-400 hover:text-gray-300'}`}
+              onClick={() => setActiveTab('comparison')}
+            >
+              Comparação de Dano
+            </button>
+            <button 
+              className={`py-2 px-4 font-medium ${activeTab === 'costBenefit' 
+                ? 'border-b-2 border-indigo-500 text-indigo-400' 
+                : 'text-gray-400 hover:text-gray-300'}`}
+              onClick={() => setActiveTab('costBenefit')}
+            >
+              Análise de Custo-Benefício
+            </button>
+          </div>
+          
+          {/* Tab Content */}
+          <div className="space-y-4">
+            {activeTab === 'comparison' ? renderComparisonTab() : renderCostBenefitTab()}
+          </div>
+        </div>
+      );
+    }
+
+    // Renderizar o componente no contêiner root
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PokemonCalculator />);
+  </script>
+</body>
+</html>
